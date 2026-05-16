@@ -1981,7 +1981,7 @@ export default function Home() {
           </div>
           ) : null}
 
-          <div className={`chat-scrollbar mt-2 h-[calc(100dvh-19rem)] min-h-0 w-full min-w-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto rounded-xl border border-zinc-200 bg-zinc-50 p-3 pr-2 md:mt-4 md:h-auto ${isBotSpeaking || isListening ? "pt-20 md:pt-24" : "pt-3"}`}>
+          <div className={`chat-scrollbar mt-2 min-h-0 w-full min-w-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto rounded-xl border border-zinc-200 bg-zinc-50 p-3 pr-2 md:mt-4 ${isBotSpeaking || isListening ? "pt-20 md:pt-24" : "pt-3"}`}>
             {messages.length === 0 ? (
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
                 Start by writing your first message in English.
@@ -2169,7 +2169,7 @@ export default function Home() {
             </div>
           ) : null}
 
-          <div className="sticky bottom-0 z-10 mt-2 w-full min-w-0 shrink-0 rounded-xl border border-zinc-200 bg-white/95 p-3 backdrop-blur md:static md:mt-3 md:p-4">
+          <div className="sticky bottom-0 z-20 mt-2 w-full min-w-0 shrink-0 rounded-xl border border-zinc-200 bg-white/95 p-3 backdrop-blur md:static md:mt-3 md:p-4">
             <div className="flex w-full flex-col items-center justify-center">
               <motion.button
                 type="button"
