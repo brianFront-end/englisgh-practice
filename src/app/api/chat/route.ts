@@ -383,18 +383,18 @@ export async function POST(request: Request) {
     let outputText: string | undefined;
     let lastError: unknown;
 
-    const chain = normalizedModel
+    let chain = normalizedModel
       ? isNvidiaFamilyModel(normalizedModel) || isGroqFamilyModel(normalizedModel)
         ? [normalizedModel]
         : [normalizedModel, ...MODEL_FALLBACK_CHAIN.filter((item) => item !== normalizedModel)]
-      : MODEL_FALLBACK_CHAIN;
+      : [...MODEL_FALLBACK_CHAIN];
 
     let usedModel: string | undefined;
 
     if (normalizedModel && isNvidiaFamilyModel(normalizedModel)) {
       const availableNvidiaModels = await listNvidiaModels();
       if (availableNvidiaModels.length > 0 && !availableNvidiaModels.includes(normalizedModel)) {
-        chain.splice(0, chain.length, availableNvidiaModels[0]);
+        chain = [availableNvidiaModels[0]];
       }
     }
 

@@ -890,7 +890,7 @@ export default function Home() {
       }
 
       setMessages((prev) => {
-        const updated = [...prev, { role: "assistant", text: data.reply! }];
+        const updated: ChatMessage[] = [...prev, { role: "assistant", text: data.reply! }];
         setChatSessions((sessions) =>
           sessions.map((session) =>
             session.id === effectiveActiveSessionId ? { ...session, messages: updated } : session,
@@ -1331,7 +1331,7 @@ export default function Home() {
               />
             </button>
             <span className="text-xs text-zinc-600">{user?.firstName ? `Hi, ${user.firstName}` : "Signed in"}</span>
-            <UserButton afterSignOutUrl="/" />
+            <UserButton />
           </div>
           <p className="text-xs font-bold uppercase tracking-wide text-[#58cc02]">
             English AI Coach
