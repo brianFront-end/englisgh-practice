@@ -1165,7 +1165,7 @@ export default function Home() {
               Sign in with Google to continue your speaking practice and keep your progress on this device.
             </p>
 
-            <SignInButton mode="modal" forceRedirectUrl="/" fallbackRedirectUrl="/" oauthFlow="popup">
+            <SignInButton mode="redirect" forceRedirectUrl="/" fallbackRedirectUrl="/" oauthFlow="redirect">
               <button
                 type="button"
                 className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#58cc02] px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#58cc02]/25 transition hover:bg-[#4fb802]"
