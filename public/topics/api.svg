@@ -1,0 +1,7 @@
+<svg width="1200" height="500" viewBox="0 0 1200 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="500" rx="36" fill="#E6F6FF"/>
+  <circle cx="1000" cy="350" r="130" fill="#22C55E" opacity="0.2"/>
+  <rect x="280" y="120" width="640" height="260" rx="24" fill="white"/>
+  <text x="340" y="220" fill="#111827" font-family="Arial" font-size="58" font-weight="700">API Challenge</text>
+  <text x="340" y="288" fill="#4B5563" font-family="Arial" font-size="30">Yesterday I built and finished it</text>
+</svg>
