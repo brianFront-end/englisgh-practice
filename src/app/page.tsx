@@ -182,6 +182,51 @@ function cleanTranslationCandidate(raw: string, sourceSentence: string) {
   return rightKey === sourceKey ? "" : right;
 }
 
+function getMicHelpMessage() {
+  if (typeof navigator === "undefined") {
+    return "Microphone error. Please check browser permissions.";
+  }
+
+  const ua = navigator.userAgent || "";
+  const isIPhone = /iPhone|iPad|iPod/i.test(ua);
+
+  if (isIPhone) {
+    return "iPhone microphone blocked. Open this app in Safari (not Instagram/WhatsApp browser), then tap aA > Website Settings > Microphone > Allow, and reload.";
+  }
+
+  return "Microphone error. Please check browser permissions.";
+}
+
+function getSpeechRecognitionErrorMessage(errorCode?: string) {
+  const code = (errorCode || "").toLowerCase();
+  const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
+  const isIPhone = /iPhone|iPad|iPod/i.test(ua);
+
+  if (code === "not-allowed" || code === "service-not-allowed") {
+    return getMicHelpMessage();
+  }
+
+  if (code === "network") {
+    return isIPhone
+      ? "Speech recognition network error on iPhone. Make sure you are in Safari, with stable internet, and try again."
+      : "Speech recognition network error. Check your internet connection and try again.";
+  }
+
+  if (code === "no-speech") {
+    return "No speech detected. Try again and speak clearly after pressing the mic button.";
+  }
+
+  if (code === "aborted") {
+    return "Microphone was stopped. Please tap the mic again.";
+  }
+
+  if (isIPhone) {
+    return "iPhone speech recognition may be unavailable in this browser context. Use Safari and try again.";
+  }
+
+  return "Microphone error. Please check browser permissions.";
+}
+
 function formatSessionDate(iso: string) {
   const date = new Date(iso);
   return date.toLocaleString("es-CO", {
@@ -475,6 +520,8 @@ export default function Home() {
   });
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileHistoryOpen, setIsMobileHistoryOpen] = useState(false);
+  const [isMobileAudioOpen, setIsMobileAudioOpen] = useState(false);
   const [settingsSavedFlash, setSettingsSavedFlash] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
@@ -917,7 +964,12 @@ export default function Home() {
   };
 
   const handleStartMic = () => {
-    if (!speechRecognitionSupported || isLoading) return;
+    if (isLoading) return;
+
+    if (!speechRecognitionSupported) {
+      setError("Speech recognition is not supported on this device/browser. On iPhone, use Safari and update iOS.");
+      return;
+    }
 
     const SpeechRecognitionCtor =
       window.SpeechRecognition ?? window.webkitSpeechRecognition;
@@ -935,10 +987,10 @@ export default function Home() {
       setIsListening(true);
       setVoiceUiState("listening");
     };
-    recognition.onerror = () => {
+    recognition.onerror = (event) => {
       setIsListening(false);
       setVoiceUiState("idle");
-      setError("Microphone error. Please check browser permissions.");
+      setError(getSpeechRecognitionErrorMessage((event as { error?: string }).error));
     };
     recognition.onend = () => {
       const shouldSendNow = shouldSendOnStopRef.current;
@@ -1046,7 +1098,9 @@ export default function Home() {
 
         tick();
       } catch {
-        setError("No pude acceder al audio del micrófono. Revisá permisos del navegador.");
+        // Do not block speech flow if visual mic analyzer fails.
+        // iOS can deny/limit getUserMedia while still allowing recognition.
+        setMicLevel(0);
       }
     })();
   };
@@ -1418,7 +1472,19 @@ export default function Home() {
           {isChatModalOpen ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-2 md:p-4">
             <section ref={modalRef} tabIndex={-1} className="flex h-[100dvh] w-full max-w-5xl min-h-0 flex-col overflow-x-hidden overflow-y-hidden rounded-none border-0 bg-white p-3 shadow-xl outline-none md:h-[90vh] md:rounded-2xl md:border-2 md:border-zinc-200 md:p-5">
-              <div className="mb-3 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setIsChatModalOpen(false)}
+                aria-label="Close chat"
+                title="Close chat"
+                className="absolute right-3 top-3 z-30 flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-300 bg-white text-zinc-700 md:hidden"
+              >
+                <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4 stroke-current" fill="none" strokeWidth="2">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+
+              <div className="mb-3 hidden items-center justify-between gap-3 md:flex">
                 <h2 className="text-lg font-bold text-zinc-900">BrianEnglish1.0</h2>
                 <button
                   type="button"
@@ -1433,7 +1499,7 @@ export default function Home() {
                 </button>
               </div>
 
-              <div className="mb-3 flex min-w-0 flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div className="mb-2 flex min-w-0 flex-col gap-2 md:mb-3 md:flex-row md:items-center md:justify-between">
                 <div className="chat-scrollbar inline-flex w-full min-w-0 overflow-x-auto rounded-lg border border-zinc-300 bg-white p-1 md:w-auto md:overflow-visible">
                   <button
                     type="button"
@@ -1464,7 +1530,7 @@ export default function Home() {
                   </button>
                 </div>
 
-                <div className="chat-scrollbar flex w-full min-w-0 items-center gap-2 overflow-x-auto pb-1 md:w-auto md:flex-wrap md:justify-end md:overflow-visible md:pb-0">
+                <div className="hidden md:flex md:w-auto md:flex-wrap md:justify-end md:gap-2 md:pb-0">
               <button
                 type="button"
                 onClick={() => { triggerUiFeedback(); setSoundEnabled((prev) => !prev); }}
@@ -1675,46 +1741,126 @@ export default function Home() {
 
               {activeModalTab === "chat" ? (
                 <>
-              <div className="mb-2 block rounded-xl border border-zinc-200 bg-zinc-50 p-2 md:hidden">
-                <button
-                  type="button"
-                  onClick={handleNewChat}
-                  className="mb-2 w-full rounded-lg bg-[#58cc02] px-2 py-2 text-xs font-semibold text-white"
-                >
-                  + New chat
-                </button>
-                <input
-                  value={chatSearch}
-                  onChange={(event) => setChatSearch(event.target.value)}
-                  placeholder="Buscar chat..."
-                  className="mb-2 w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-xs text-zinc-800"
-                />
-                <div className="chat-scrollbar flex gap-2 overflow-x-auto pb-1">
-                  {filteredSessions.map((session) => (
-                    <button
-                      key={`mobile-${session.id}`}
-                      type="button"
-                      onClick={() => {
-                        setActiveSessionId(session.id);
-                        setMessages(session.messages);
-                      }}
-                      className={`shrink-0 rounded-xl border p-2 text-left text-xs ${
-                        session.id === effectiveActiveSessionId
-                          ? "border-[#58cc02] bg-[#f1ffe8] text-zinc-900"
-                          : "border-zinc-300 bg-white text-zinc-700"
-                      }`}
-                    >
-                      <div className="flex w-44 items-start gap-2">
-                        <span className="mt-0.5 text-sm">👤</span>
-                        <div className="min-w-0">
-                          <p className="truncate font-semibold">{session.pinned ? "📌 " : ""}{session.title || "New chat"}</p>
-                          <p className="truncate text-[11px] text-zinc-600">{getSessionSubtitle(session.messages)}</p>
-                          <p className="mt-1 text-[10px] text-zinc-500">{formatSessionDate(session.createdAt)}</p>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
+              <div className="mb-2 block md:hidden">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleNewChat}
+                    className="flex-1 rounded-lg bg-[#58cc02] px-2 py-2 text-xs font-semibold text-white"
+                  >
+                    + New chat
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsMobileHistoryOpen((prev) => !prev)}
+                    className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700"
+                  >
+                    {isMobileHistoryOpen ? "Hide chats" : "Show chats"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsMobileAudioOpen((prev) => !prev)}
+                    className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700"
+                  >
+                    {isMobileAudioOpen ? "Hide audio" : "Audio"}
+                  </button>
                 </div>
+
+                {isMobileHistoryOpen ? (
+                  <div className="mt-2 rounded-xl border border-zinc-200 bg-zinc-50 p-2">
+                    <input
+                      value={chatSearch}
+                      onChange={(event) => setChatSearch(event.target.value)}
+                      placeholder="Buscar chat..."
+                      className="mb-2 w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-xs text-zinc-800"
+                    />
+                    <div className="chat-scrollbar flex gap-2 overflow-x-auto pb-1">
+                      {filteredSessions.map((session) => (
+                        <button
+                          key={`mobile-${session.id}`}
+                          type="button"
+                          onClick={() => {
+                            setActiveSessionId(session.id);
+                            setMessages(session.messages);
+                            setIsMobileHistoryOpen(false);
+                          }}
+                          className={`shrink-0 rounded-xl border p-2 text-left text-xs ${
+                            session.id === effectiveActiveSessionId
+                              ? "border-[#58cc02] bg-[#f1ffe8] text-zinc-900"
+                              : "border-zinc-300 bg-white text-zinc-700"
+                          }`}
+                        >
+                          <div className="flex w-44 items-start gap-2">
+                            <span className="mt-0.5 text-sm">👤</span>
+                            <div className="min-w-0">
+                              <p className="truncate font-semibold">{session.pinned ? "📌 " : ""}{session.title || "New chat"}</p>
+                              <p className="truncate text-[11px] text-zinc-600">{getSessionSubtitle(session.messages)}</p>
+                              <p className="mt-1 text-[10px] text-zinc-500">{formatSessionDate(session.createdAt)}</p>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {isMobileAudioOpen ? (
+                  <div className="mt-2 rounded-xl border border-zinc-200 bg-zinc-50 p-2">
+                    <p className="mb-2 text-xs font-semibold text-zinc-700">Audio options</p>
+                    <div className="grid grid-cols-6 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { triggerUiFeedback(); setSoundEnabled((prev) => !prev); }}
+                        className={`flex h-8 w-8 items-center justify-center rounded-lg border ${soundEnabled ? "border-[#58cc02] text-[#58cc02]" : "border-zinc-300 text-zinc-700"}`}
+                        aria-label="Toggle sounds"
+                      >
+                        ♪
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { triggerUiFeedback(); void speakText("Hello! Let's practice English together."); }}
+                        disabled={!speechSynthesisSupported}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-300 text-zinc-700 disabled:opacity-50"
+                        aria-label="Test voice"
+                      >
+                        🎤
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { triggerUiFeedback(); void speakText("Hello! Let's practice English together.", 0.8); }}
+                        disabled={!speechSynthesisSupported}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-300 text-zinc-700 disabled:opacity-50"
+                        aria-label="Repeat slowly"
+                      >
+                        →
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { triggerUiFeedback(); setVoiceEnabled((prev) => !prev); }}
+                        className={`flex h-8 w-8 items-center justify-center rounded-lg border ${voiceEnabled ? "border-[#58cc02] text-[#58cc02]" : "border-zinc-300 text-zinc-700"}`}
+                        aria-label={voiceEnabled ? "Disable voice" : "Enable voice"}
+                      >
+                        🔊
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { triggerUiFeedback(); setShowConversationSpanish((prev) => !prev); }}
+                        className={`flex h-8 w-8 items-center justify-center rounded-lg border text-[10px] font-bold ${showConversationSpanish ? "border-[#58cc02] text-[#58cc02]" : "border-zinc-300 text-zinc-700"}`}
+                        aria-label={showConversationSpanish ? "Hide Spanish conversation" : "Show Spanish conversation"}
+                      >
+                        ES
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDarkMode((prev) => !prev)}
+                        className={`flex h-8 w-8 items-center justify-center rounded-lg border text-[10px] font-bold ${darkMode ? "border-[#58cc02] text-[#58cc02]" : "border-zinc-300 text-zinc-700"}`}
+                        aria-label="Toggle dark mode"
+                      >
+                        {darkMode ? "☾" : "☼"}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               <div
@@ -1835,7 +1981,7 @@ export default function Home() {
           </div>
           ) : null}
 
-          <div className={`chat-scrollbar mt-3 min-h-0 w-full min-w-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto rounded-xl border border-zinc-200 bg-zinc-50 p-3 pr-2 md:mt-4 ${isBotSpeaking || isListening ? "pt-20 md:pt-24" : "pt-3"}`}>
+          <div className={`chat-scrollbar mt-2 h-[calc(100dvh-19rem)] min-h-0 w-full min-w-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto rounded-xl border border-zinc-200 bg-zinc-50 p-3 pr-2 md:mt-4 md:h-auto ${isBotSpeaking || isListening ? "pt-20 md:pt-24" : "pt-3"}`}>
             {messages.length === 0 ? (
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
                 Start by writing your first message in English.
@@ -2008,7 +2154,7 @@ export default function Home() {
           </div>
 
           {lastAssistantMessage ? (
-            <div className="chat-scrollbar mt-2 flex w-full min-w-0 gap-2 overflow-x-auto pb-1">
+            <div className="chat-scrollbar mt-2 hidden w-full min-w-0 gap-2 overflow-x-auto pb-1 md:flex">
               {QUICK_REPLY_CHIPS.map((chip) => (
                 <button
                   key={chip}
@@ -2023,7 +2169,7 @@ export default function Home() {
             </div>
           ) : null}
 
-          <div className="mt-2 w-full min-w-0 shrink-0 rounded-xl border border-zinc-200 bg-white/95 p-3 backdrop-blur md:mt-3 md:p-4">
+          <div className="sticky bottom-0 z-10 mt-2 w-full min-w-0 shrink-0 rounded-xl border border-zinc-200 bg-white/95 p-3 backdrop-blur md:static md:mt-3 md:p-4">
             <div className="flex w-full flex-col items-center justify-center">
               <motion.button
                 type="button"
@@ -2033,7 +2179,7 @@ export default function Home() {
                 title={isListening ? "Send voice message" : "Start recording"}
                 whileTap={{ scale: 0.94 }}
                 whileHover={{ scale: 1.03 }}
-                className={`relative mx-auto flex h-20 w-20 items-center justify-center rounded-full text-white transition disabled:opacity-50 ${
+                className={`relative mx-auto flex h-14 w-14 items-center justify-center rounded-full text-white transition disabled:opacity-50 md:h-20 md:w-20 ${
                   isListening ? "bg-red-600" : "bg-[#58cc02]"
                 }`}
               >
@@ -2052,7 +2198,7 @@ export default function Home() {
                 {isLoading ? (
                   <span className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
                 ) : (
-                  <svg aria-hidden viewBox="0 0 24 24" className="relative h-8 w-8 fill-current">
+                  <svg aria-hidden viewBox="0 0 24 24" className="relative h-6 w-6 fill-current md:h-8 md:w-8">
                     <path d="M12 15a4 4 0 0 0 4-4V7a4 4 0 1 0-8 0v4a4 4 0 0 0 4 4Zm7-4a1 1 0 1 0-2 0 5 5 0 1 1-10 0 1 1 0 1 0-2 0 7 7 0 0 0 6 6.92V21H9a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2h-2v-3.08A7 7 0 0 0 19 11Z" />
                   </svg>
                 )}

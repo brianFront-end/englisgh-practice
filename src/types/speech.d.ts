@@ -4,7 +4,7 @@ interface SpeechRecognition extends EventTarget {
   continuous: boolean;
   maxAlternatives: number;
   onstart: (() => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
   onend: (() => void) | null;
   onresult: ((event: SpeechRecognitionEvent) => void) | null;
   start(): void;
@@ -32,6 +32,11 @@ interface SpeechRecognitionResultList {
 interface SpeechRecognitionEvent extends Event {
   resultIndex: number;
   results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+  message?: string;
 }
 
 interface Window {
